@@ -45,13 +45,12 @@
                 }
                 usrInput.clear();
                 displayPrompt();
-                moveCursorToBeginningOfPrompt();
-
                 break;
 
             default:
                 handleInput(c);
         }
+        updateScreen();
     }
 }
 
@@ -111,7 +110,7 @@ void ShellInterface::clearLine(){
     int numCharsInLine = usrInput.size() + promptLength;
     moveCursorToBeginningOfLine();
     for (int i = 0; i < numCharsInLine; i++){
-        writeSync(STDOUT_FILENO, " ", 1);
+        write(STDOUT_FILENO, " ", 1);
     }
     moveCursorToBeginningOfLine();
 }
@@ -119,40 +118,43 @@ void ShellInterface::clearLine(){
 void ShellInterface::updateScreen() {
     clearLine();
     displayPrompt();
-    writeSync(STDOUT_FILENO, usrInput.c_str(), usrInput.size());
+    write(STDOUT_FILENO, usrInput.c_str(), usrInput.size());
     moveCursorRightFromStart(promptLength + cursorInputPosition);
 }
 
-void ShellInterface::handleInsert(char c){
+//              abcde
+//i remove c => abde
+//when updatescreen gets called reprint prompt and input
+//              abdee
+//because  when we remove the element
 
-// when user add at the end of the line
-    if (cursorInputPosition >= usrInput.size()){
-        usrInput += c;
-        writeSync(STDOUT_FILENO, &c, 1);
-        ++cursorInputPosition;
-    }else{
-        //when user add in between characaters
-        usrInput.insert(cursorInputPosition, 1, c);
-        ++cursorInputPosition;
-        updateScreen();
-    }
 
-// when user add the character in the middle of the line
-
-}
 
 void ShellInterface::handleBackspace() {
+
     if (isCursorInBounds(cursorInputPosition - 1)){
+        //In the situation where users want to remove char in between current input
+        //when updateScreen gets called, we already decrement the position
+        //which cause a character in the line to be not completely cleared
+        //therefore, need to clear line here while we have the original size
+        int currentPosition = cursorInputPosition;
+        clearLine();
         usrInput.erase(cursorInputPosition - 1, 1);
-        moveCursorLeft();
-        writeSync(STDOUT_FILENO, " ", 1);
-        writeSync(STDOUT_FILENO, MOVE_LEFT_BY_1, 3);
+        cursorInputPosition = currentPosition - 1;
     }
 }
+
+//
 
 
 void ShellInterface::handleInput(char c){
-    handleInsert(c);
+    // when user add at the end of the line
+    if (cursorInputPosition >= usrInput.size())
+        usrInput += c;
+    else
+        usrInput.insert(cursorInputPosition, 1, c);
+
+    ++cursorInputPosition;
 }
 
 void ShellInterface::handleArrowKeys() {
@@ -169,10 +171,11 @@ void ShellInterface::handleArrowKeys() {
             history.showNextCommand();
         } else if (sequence[1] == 'C') {
             //Right Arrow
-            moveCursorRight();
+            if (isCursorInBounds(cursorInputPosition + 1)) ++cursorInputPosition;
+
         } else if (sequence[1] == 'D') {
             //Left Arrow
-            moveCursorLeft();
+            if (isCursorInBounds(cursorInputPosition - 1)) --cursorInputPosition;
         }
     }
 }
@@ -232,21 +235,3 @@ std::vector<std::string> ShellInterface::stringSplit(const std::string& s, char 
     }
     return tokens;
 }
-
-
-//TODO:
-// 1. MOving cursor to the left should not allow them to move past $ or #
-// 2. Moving cursor to the right ""
-// 3. pressing up arrow, should save/add existing input to the history
-// 4. add
-
-//std::vector<std::string> ShellInterface::stringSplit(const std::string& s, char delimiter) {
-//    std::vector<std::string> tokens;
-//    std::stringstream stream(s);
-//    std::string token;
-//    //getline is useful when you want to read a line (or sequence of characters uptill specified charaacter)
-//    while(std::getline(stream, token, delimiter)){
-//        tokens.emplace_back(token);
-//    }
-//    return tokens;
-//}
