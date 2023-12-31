@@ -5,26 +5,82 @@
 #include "CommandHistory.h"
 #include "unistd.h"
 
+//1
+//2 1
 void CommandHistory::addCommand(const std::string &command) {
     CommandNode* node = new CommandNode(command);
+
+    node->nextCommand = headCommand;
+
+    if (headCommand != nullptr)
+        headCommand->prevCommand = node;
+
+    if (tailCommand == nullptr)
+        tailCommand = node;
+
+    headCommand = node;
+//    printDebug();
+}
+
+
+void CommandHistory::removeTopCommand() {
+    if (headCommand != nullptr){
+        CommandNode* newHead = headCommand->nextCommand;
+        if (newHead != nullptr){
+            newHead->prevCommand = nullptr;
+        }
+        delete headCommand;
+        headCommand = newHead;
+    }
+}
+
+CommandNode* CommandHistory::getPreviousCommand() {
     if (currentCommand != nullptr){
-        node->prevCommand = currentCommand;
-        currentCommand->nextCommand = node;
-    }
-    currentCommand = node;
-}
-
-void CommandHistory::showPreviousCommand() {
-
-    if (currentCommand != nullptr && currentCommand->prevCommand != nullptr){
         currentCommand = currentCommand->prevCommand;
-        write(STDOUT_FILENO, &currentCommand->command, currentCommand->command.size());
+    }
+    return currentCommand;
+}
+
+CommandNode* CommandHistory::getNextCommand() {
+    if (currentCommand != nullptr){
+        currentCommand = currentCommand->nextCommand;
+    }
+    return currentCommand;
+}
+
+
+void CommandHistory::printDebug2(){
+    CommandNode* currentNode = currentCommand;
+    while(currentNode != nullptr){
+        logfile << currentNode->command << "->";
+        currentNode = currentNode->nextCommand;
+        logfile.flush();
+    }
+    logfile << "\n";
+};
+void CommandHistory::printDebug() {
+    CommandNode* currentNode = headCommand;
+    while(currentNode != nullptr){
+        logfile << currentNode->command << "->";
+        currentNode = currentNode->nextCommand;
+        logfile.flush();
+    }
+    logfile << "\n";
+}
+
+CommandHistory::~CommandHistory() {
+    CommandNode* currentNode = tailCommand;
+    while (currentNode != nullptr){
+        CommandNode* tmp = currentNode->prevCommand;
+        delete currentNode;
+        currentNode = tmp;
     }
 }
 
-void CommandHistory::showNextCommand() {
-    if (currentCommand != nullptr && currentCommand->nextCommand != nullptr){
-        currentCommand = currentCommand->nextCommand;
-        write(STDOUT_FILENO, &currentCommand->command, currentCommand->command.size());
+CommandHistory::CommandHistory(const CommandHistory &other) {
+    CommandNode* currentNode = other.tailCommand;
+    while(currentNode != nullptr){
+        addCommand(currentNode->command);
+        currentNode = currentCommand->prevCommand;
     }
 }

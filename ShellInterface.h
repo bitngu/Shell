@@ -25,19 +25,22 @@ public:
 
 
 private:
-    std:: string usrInput;
+    std::ofstream logger{"shell.txt"};
+    std:: string usrInput{};
+    bool isActiveInput = true;
+    std:: string savedActiveInput{};
     int cursorInputPosition = 0;
     CommandHistory history = CommandHistory();
+    CommandHistory* historyCopy = nullptr;
     Command cmd = Command();
 
     int promptLength = 0;
     void displayPrompt();
-    void writeSync(int fd,  const void *buf, int nbyte);
     bool isCursorInBounds(int pos);
     void handleInput(char c);
     void handleArrowKeys();
-    void handleInsert(char c);
     void handleBackspace();
+    void handleEnter();
 
     static std::vector<std::string> stringSplit(const std::string& s, char delimiter = '/');
 
@@ -59,6 +62,8 @@ private:
 
     //raw mode of terminal => detect character input
     void setNonCanonicalMode();
+
+    ~ShellInterface()
 
 };
 

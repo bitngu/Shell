@@ -6,7 +6,7 @@
 
 
 #define CTRL_C 3
-#define NEWLINE '\n'
+#define NEWLINE '\r'
 #define ESCAPE_CHAR '\x1b'
 #define BACKSPACE 127
 #define MOVE_LEFT_BY_1 "\x1b[D"
@@ -14,16 +14,29 @@
 #define CLEAR_LINE "\33[2K"
 
 
+//make clean && make && build/Shell
+
+//current issue:
+//unable to navigate back to original input
+//- only able to do it for the first time. after that history is gone?
+
+//maybe try adding it into the command?
+//so when user press up, add the command into it. so they cana navigate back
+//and if any enter key is pressed, we remove that value
+
+//
+
 [[noreturn]] void ShellInterface::execute() {
     sleep(1);
     setNonCanonicalMode();
     displayPrompt();
 
+
     while(true){
         char c;
         read(STDIN_FILENO, &c, sizeof(c));
-
         switch (c) {
+
             case CTRL_C:
                 resetCanonicalMode();
                 break;
@@ -39,12 +52,7 @@
             case NEWLINE:
                 //parse commands;
                 //run command
-                history.addCommand(usrInput);
-                if(usrInput == "quit"){
-                    resetCanonicalMode();
-                }
-                usrInput.clear();
-                displayPrompt();
+                handleEnter();
                 break;
 
             default:
@@ -66,13 +74,10 @@ void ShellInterface::displayPrompt() {
         cwd = "/../" + latestDirName;
     }
     promptLength = cwd.size();
-    writeSync(STDOUT_FILENO, cwd.c_str(), cwd.size());
+    write(STDOUT_FILENO, cwd.c_str(), cwd.size());
 }
 
-void ShellInterface::writeSync(int fd,  const void* buf, int nbyte){
-    write(fd, buf, nbyte);
-//    fsync(STDOUT_FILENO);
-}
+
 
 void ShellInterface::resetCanonicalMode() {
     //set attribute to terminal to take effect immediately (TCSANOW)
@@ -92,7 +97,7 @@ void ShellInterface::setNonCanonicalMode() {
     //set terminal to raw mode; disable CANONICAL and ECHO mode to handle user input
     struct termios raw;
 
-    raw.c_lflag &= ~(ICANON | ECHO );
+    raw.c_lflag &= ~(ICANON | ECHO);
 
     //set minimum number character(s) for buffer
     raw.c_cc[VMIN] = 1;
@@ -105,7 +110,6 @@ void ShellInterface::setNonCanonicalMode() {
 }
 
 
-//when user press the up arrow key, if there's a set of input already. it sshould save it to the commandhistory
 void ShellInterface::clearLine(){
     int numCharsInLine = usrInput.size() + promptLength;
     moveCursorToBeginningOfLine();
@@ -122,13 +126,20 @@ void ShellInterface::updateScreen() {
     moveCursorRightFromStart(promptLength + cursorInputPosition);
 }
 
-//              abcde
-//i remove c => abde
-//when updatescreen gets called reprint prompt and input
-//              abdee
-//because  when we remove the element
 
-
+void ShellInterface::handleEnter(){
+    if (!usrInput.empty()){
+        //update state
+        history.addCommand(usrInput);
+        //executeCommand;
+        usrInput.clear();
+        savedActiveInput.clear();
+        isActiveInput = true;
+        history.currentCommand = nullptr;
+        cursorInputPosition = 0;
+    }
+    write(STDOUT_FILENO, "\n", 1);
+}
 
 void ShellInterface::handleBackspace() {
 
@@ -144,16 +155,52 @@ void ShellInterface::handleBackspace() {
     }
 }
 
+//say they are perofrm:
+//abc
+//def
+//g <- didn't press enter, goes up
+
+//at def <- make some modification for example adding hi -> defhi, need to update the command
+//but if they press enter. we don't want to update the command. we add it to the new command
+//so when
+//this applies for all of them
+
+//i think i need to create a copy of it.
+//for exaample
+
+
+//abc
+
+//hi
+
+//g
+
+
+//then i press up so at "hi" modified to add "t" => "hit", don't press enter
+//go up one more, at "abc", modify it. delete "bc" => "a"
+//go back down to "g". modify it. add k. so it's "gk" and then press enter
+//now when i go back to history, i get gk, hi, abc instead of gk, a, hit
 //
 
+//so I probably need a history copy.
+//when first time i press up key. store the state of history
+//
+//user can do whatever. modify different state. it'll get updated ad such from the copy history
+//but once they press enter. we just add the new command to the history
+//clear the copy history
+//right now, i have everything set to modify the/update using the original
+//
 
 void ShellInterface::handleInput(char c){
-    // when user add at the end of the line
-    if (cursorInputPosition >= usrInput.size())
+    //need to update the command
+    if (cursorInputPosition >= usrInput.size()) {
+        // add at the end of the line
         usrInput += c;
-    else
+    }
+    else {
+        // add between the line
         usrInput.insert(cursorInputPosition, 1, c);
-
+    }
     ++cursorInputPosition;
 }
 
@@ -161,19 +208,50 @@ void ShellInterface::handleArrowKeys() {
     char sequence[2];
     read(STDIN_FILENO, &sequence[0], 1);
     read(STDIN_FILENO, &sequence[1], 1);
+
     if (sequence[0] == '[') {
         if (sequence[1] == 'A') {
             //Up Arrow
-            history.showPreviousCommand();
-            //write to stdout. add command to front of history
+            //next command in linked list
+
+            //save original input before navigating through history
+            if (isActiveInput){
+                savedActiveInput = usrInput;
+                isActiveInput = false;
+            }
+            clearLine();
+            if (history.headCommand != nullptr && history.currentCommand == nullptr){
+                history.currentCommand = history.headCommand;
+                history.addCommand(savedActiveInput);
+                usrInput = history.currentCommand->command;
+                cursorInputPosition = static_cast<int> (usrInput.size());
+            }else if (history.headCommand != nullptr && history.currentCommand->nextCommand != nullptr){
+                history.currentCommand = history.getNextCommand();
+                usrInput = history.currentCommand->command;
+                cursorInputPosition = static_cast<int> (usrInput.size());
+            }
+            history.printDebug2();
+
         } else if (sequence[1] == 'B') {
             //Down Arrow
-            history.showNextCommand();
+            //prev command in linked list
+
+            clearLine();
+            if (history.headCommand != nullptr && history.currentCommand->prevCommand){
+                history.currentCommand = history.getPreviousCommand();
+                usrInput = history.currentCommand->command;
+                cursorInputPosition = static_cast<int> (usrInput.size());
+            } else {
+                //get original input
+                usrInput = history.currentCommand->command;
+                cursorInputPosition = static_cast<int> (usrInput.size());
+            }
+
         } else if (sequence[1] == 'C') {
             //Right Arrow
             if (isCursorInBounds(cursorInputPosition + 1)) ++cursorInputPosition;
-
-        } else if (sequence[1] == 'D') {
+        }
+        else if (sequence[1] == 'D') {
             //Left Arrow
             if (isCursorInBounds(cursorInputPosition - 1)) --cursorInputPosition;
         }
@@ -191,19 +269,19 @@ bool ShellInterface::isCursorInBounds(int pos) {
 void ShellInterface::moveCursorLeft(){
     if (isCursorInBounds(cursorInputPosition - 1)){
         --cursorInputPosition;
-        writeSync(STDOUT_FILENO, MOVE_LEFT_BY_1, 3);
+        write(STDOUT_FILENO, MOVE_LEFT_BY_1, 3);
     }
 }
 
 void ShellInterface::moveCursorRight(){
     if (isCursorInBounds(cursorInputPosition + 1)){
         ++cursorInputPosition;
-        writeSync(STDOUT_FILENO, MOVE_RIGHT_BY_1, 3);
+        write(STDOUT_FILENO, MOVE_RIGHT_BY_1, 3);
     }
 }
 
 void ShellInterface::moveCursorToBeginningOfLine(){
-    writeSync(STDOUT_FILENO, "\r", 1);
+    write(STDOUT_FILENO, "\r", 1);
 }
 
 void ShellInterface::moveCursorToBeginningOfPrompt() {
@@ -214,7 +292,7 @@ void ShellInterface::moveCursorToBeginningOfPrompt() {
 void ShellInterface::moveCursorRightFromStart(int position) {
     moveCursorToBeginningOfLine();
     for (int i = 0; i < position; ++i){
-        writeSync(STDOUT_FILENO, MOVE_RIGHT_BY_1, 3);
+        write(STDOUT_FILENO, MOVE_RIGHT_BY_1, 3);
     }
 }
 
@@ -235,3 +313,5 @@ std::vector<std::string> ShellInterface::stringSplit(const std::string& s, char 
     }
     return tokens;
 }
+
+
