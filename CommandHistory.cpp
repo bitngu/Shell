@@ -5,20 +5,22 @@
 #include "CommandHistory.h"
 #include "unistd.h"
 
-//1
-//2 1
+//head> 1 <tail
+// add 2
+// 2-> 1
+//  2 <- 1
 void CommandHistory::addCommand(const std::string &command) {
     CommandNode* node = new CommandNode(command);
 
-    node->nextCommand = headCommand;
-
-    if (headCommand != nullptr)
-        headCommand->prevCommand = node;
-
-    if (tailCommand == nullptr)
+    if (headCommand == nullptr){
+        headCommand = node;
         tailCommand = node;
-
-    headCommand = node;
+    }
+    else{
+        node->nextCommand = headCommand;
+        headCommand->prevCommand = node;
+        headCommand = node;
+    }
 //    printDebug();
 }
 
@@ -68,6 +70,7 @@ void CommandHistory::printDebug() {
     logfile << "\n";
 }
 
+
 CommandHistory::~CommandHistory() {
     CommandNode* currentNode = tailCommand;
     while (currentNode != nullptr){
@@ -81,6 +84,6 @@ CommandHistory::CommandHistory(const CommandHistory &other) {
     CommandNode* currentNode = other.tailCommand;
     while(currentNode != nullptr){
         addCommand(currentNode->command);
-        currentNode = currentCommand->prevCommand;
+        currentNode = currentNode->prevCommand;
     }
 }

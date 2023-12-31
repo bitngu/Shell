@@ -63,7 +63,7 @@ private:
     //raw mode of terminal => detect character input
     void setNonCanonicalMode();
 
-    ~ShellInterface()
+//    ~ShellInterface()
 
 };
 
