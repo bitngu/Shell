@@ -3,12 +3,7 @@
 //
 
 #include "CommandHistory.h"
-#include "unistd.h"
 
-//head> 1 <tail
-// add 2
-// 2-> 1
-//  2 <- 1
 void CommandHistory::addCommand(const std::string &command) {
     CommandNode* node = new CommandNode(command);
 

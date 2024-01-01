@@ -133,7 +133,6 @@ void ShellInterface::handleEnter(){
         history.addCommand(usrInput);
         //executeCommand;
         usrInput.clear();
-        savedActiveInput.clear();
         isActiveInput = true;
         delete historyCopy;
         historyCopy = nullptr;
@@ -223,37 +222,44 @@ void ShellInterface::handleArrowKeys() {
             //Up Arrow
             //next command in linked list
 
-            //save original input before navigating through history
-            if (isActiveInput){
-                savedActiveInput = usrInput;
+            //if there is history to be stored
+            if (isActiveInput && history.headCommand != nullptr) {
+                //save original input before navigating through history
                 historyCopy = new CommandHistory(history);
                 isActiveInput = false;
             }
-            clearLine();
-            if (historyCopy->headCommand != nullptr && historyCopy->currentCommand == nullptr){
-                historyCopy->currentCommand = historyCopy->headCommand;
-                historyCopy->addCommand(savedActiveInput);
-                usrInput = historyCopy->currentCommand->command;
-                cursorInputPosition = static_cast<int> (usrInput.size());
-            }else if (historyCopy->headCommand != nullptr && historyCopy->currentCommand->nextCommand != nullptr){
-                historyCopy->currentCommand = historyCopy->getNextCommand();
-                usrInput = historyCopy->currentCommand->command;
-                cursorInputPosition = static_cast<int> (usrInput.size());
-            }
-//            history.printDebug2();
 
-        } else if (sequence[1] == 'B') {
+            if (historyCopy) {
+                clearLine();
+                if (historyCopy->currentCommand == nullptr) {
+                    //store input that user wrote to before the up arrow
+                    historyCopy->currentCommand = historyCopy->headCommand;
+                    historyCopy->addCommand(usrInput);
+                    usrInput = historyCopy->currentCommand->command;
+                    cursorInputPosition = static_cast<int> (usrInput.size());
+                } else if (historyCopy->currentCommand->nextCommand != nullptr) {
+                    historyCopy->currentCommand = historyCopy->getNextCommand();
+                    usrInput = historyCopy->currentCommand->command;
+                    cursorInputPosition = static_cast<int> (usrInput.size());
+                }
+            }
+        }
+
+        else if (sequence[1] == 'B') {
             //Down Arrow
             //prev command in linked list
-            clearLine();
+
             if (historyCopy) {
-                if (historyCopy->headCommand != nullptr && historyCopy->currentCommand->prevCommand) {
+                clearLine();
+                //get prev (in front) command
+                if (historyCopy->currentCommand->prevCommand != nullptr) {
                     historyCopy->currentCommand = historyCopy->getPreviousCommand();
                     usrInput = historyCopy->currentCommand->command;
                     cursorInputPosition = static_cast<int> (usrInput.size());
                 } else {
                     //get original input
-                    usrInput = historyCopy->currentCommand->command;
+//                    usrInput = historyCopy->currentCommand->command;
+                    usrInput = historyCopy->headCommand->command;
                     cursorInputPosition = static_cast<int> (usrInput.size());
                 }
             }

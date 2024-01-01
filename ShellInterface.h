@@ -25,13 +25,12 @@ public:
 
 
 private:
+    CommandHistory history;
+    CommandHistory* historyCopy = nullptr;
     std::ofstream logger{"shell.txt"};
     std:: string usrInput{};
     bool isActiveInput = true;
-    std:: string savedActiveInput{};
     int cursorInputPosition = 0;
-    CommandHistory history = CommandHistory();
-    CommandHistory* historyCopy = nullptr;
     Command cmd = Command();
 
     int promptLength = 0;

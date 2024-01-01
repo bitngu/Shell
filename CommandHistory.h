@@ -6,8 +6,9 @@
 #define SHELL_COMMANDHISTORY_H
 
 #include "fstream"
-
 #include "CommandNode.h"
+#include "unistd.h"
+
 class CommandHistory {
 public:
     std::ofstream logfile{"history.txt"};
