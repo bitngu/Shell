@@ -64,7 +64,8 @@
 
 
 void ShellInterface::displayPrompt() {
-    std:: string cwd = cmd.pwd();
+    Command display {"cwd"};
+    std::string cwd = display.pwd();
     int MAX_SIZE_DISPLAY = 16;
     // if path size is > 16, then we want to display it like /../dir_name
 
@@ -129,9 +130,16 @@ void ShellInterface::updateScreen() {
 
 void ShellInterface::handleEnter(){
     if (!usrInput.empty()){
-        //update state
+        //update/add history
         history.addCommand(usrInput);
+
+        //parse input
+        Parser commandParser {usrInput};
+        Parser::ParsedCommand parsedCommand = commandParser.getParsedCommand();
+
         //executeCommand;
+
+        //reset
         usrInput.clear();
         isActiveInput = true;
         delete historyCopy;

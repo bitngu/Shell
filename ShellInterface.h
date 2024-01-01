@@ -31,7 +31,6 @@ private:
     std:: string usrInput{};
     bool isActiveInput = true;
     int cursorInputPosition = 0;
-    Command cmd = Command();
 
     int promptLength = 0;
     void displayPrompt();

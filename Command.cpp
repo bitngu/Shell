@@ -5,6 +5,9 @@
 #include "Command.h"
 
 std::string Command::pwd() {
-    std::string test = "/../Shell: #";
+    std::string test = "";
+    if (!parsedCommand.command.empty()){
+        test = "/../Shell: #";
+    }
     return test;
 }
